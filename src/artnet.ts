@@ -53,7 +53,6 @@ export class ArtnetDmxPackage extends ArtnetPackage {
 }
 
 export interface ArtnetSenderConfig {
-    host: string;
     debug?: boolean;
     networkInterface: string;
 }
@@ -62,7 +61,6 @@ export class ArtnetSender {
 
     constructor( public config: ArtnetSenderConfig ) {
         this._networkInterface = config.networkInterface;
-        this._host = config.host;
         const socket = createSocket( {
             type: 'udp4',
             reuseAddr: true,
@@ -100,7 +98,7 @@ export class ArtnetSender {
     }
 
 
-    send( universe: number, data: number[] ): Promise<number> {
+    send( host: string, universe: number, data: number[] ): Promise<number> {
         return new Promise( ( resolve, reject ) => {
 
             const artDmx = new ArtnetDmxPackage();
@@ -108,7 +106,7 @@ export class ArtnetSender {
             artDmx.data = data.slice();
 
             const buf = Buffer.from( artDmx.package );
-            this._socket.send( buf, 0, buf.length, this._port, this._host, ( error, bytes ) => {
+            this._socket.send( buf, 0, buf.length, this._port, host, ( error, bytes ) => {
                 if ( error ) reject( error );
                 else resolve( bytes );
             } );
@@ -125,6 +123,5 @@ export class ArtnetSender {
 
     private readonly _socket: Socket;
     private readonly _networkInterface;
-    private readonly _host;
     private readonly _port = 6454;
 }
