@@ -13,13 +13,14 @@ export abstract class ArtnetPackage {
     opCode: ArtOpCode = ArtOpCode.OpDmx;
     protocolVersionHigh = 0;
     protocolVersionLow = 14;
+    headerCache = this.header;
 
     get header(): number[] {
         return this.id.concat( [ this.lo( this.opCode ), this.hi( this.opCode ), this.protocolVersionHigh, this.protocolVersionLow ] );
     }
 
     get package(): number[] {
-        return this.header.concat( this.body );
+        return [...this.header, ...this.body];
     }
 
     abstract get body(): number[];
@@ -47,7 +48,8 @@ export class ArtnetDmxPackage extends ArtnetPackage {
             this.hi( this.universe ), // Net
             this.hi( this.data.length ),
             this.lo( this.data.length ),
-        ].concat( this.data );
+            ...this.data
+        ];
     }
 
 }
@@ -61,6 +63,7 @@ export class ArtnetSender {
 
     constructor( public config: ArtnetSenderConfig ) {
         this._networkInterface = config.networkInterface;
+        this._artDmx = new ArtnetDmxPackage();
         const socket = createSocket( {
             type: 'udp4',
             reuseAddr: true,
@@ -98,19 +101,12 @@ export class ArtnetSender {
     }
 
 
-    send( host: string, universe: number, data: number[] ): Promise<number> {
-        return new Promise( ( resolve, reject ) => {
+    send( host: string, universe: number, data: number[] ) {
+        this._artDmx.universe = universe;
+        this._artDmx.data = data;
 
-            const artDmx = new ArtnetDmxPackage();
-            artDmx.universe = universe;
-            artDmx.data = data.slice();
-
-            const buf = Buffer.from( artDmx.package );
-            this._socket.send( buf, 0, buf.length, this._port, host, ( error, bytes ) => {
-                if ( error ) reject( error );
-                else resolve( bytes );
-            } );
-        } );
+        const buf = Buffer.from( this._artDmx.package );
+        this._socket.send( buf, 0, buf.length, this._port, host);
     }
 
     close() {
