@@ -101,12 +101,18 @@ export class ArtnetSender {
     }
 
 
-    send( host: string, universe: number, data: number[] ) {
-        this._artDmx.universe = universe;
-        this._artDmx.data = data;
-
-        const buf = Buffer.from( this._artDmx.package );
-        this._socket.send( buf, 0, buf.length, this._port, host);
+    send( host: string, universe: number, data: number[] ): Promise<number> {
+        return new Promise( ( resolve, reject ) => {
+            
+            this._artDmx.universe = universe;
+            this._artDmx.data = data;
+    
+            const buf = Buffer.from( this._artDmx.package );
+            this._socket.send( buf, 0, buf.length, this._port, host, ( error, bytes ) => {
+                if ( error ) reject( error );
+                else resolve( bytes );
+            } );
+        } );
     }
 
     close() {
