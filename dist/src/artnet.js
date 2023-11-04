@@ -15,12 +15,13 @@ class ArtnetPackage {
         this.opCode = ArtOpCode.OpDmx;
         this.protocolVersionHigh = 0;
         this.protocolVersionLow = 14;
+        this.headerCache = this.header;
     }
     get header() {
         return this.id.concat([this.lo(this.opCode), this.hi(this.opCode), this.protocolVersionHigh, this.protocolVersionLow]);
     }
     get package() {
-        return this.header.concat(this.body);
+        return [...this.headerCache, ...this.body];
     }
     hi(bytes) {
         return (bytes >> 8) & 0xff;
@@ -46,7 +47,8 @@ class ArtnetDmxPackage extends ArtnetPackage {
             this.hi(this.universe),
             this.hi(this.data.length),
             this.lo(this.data.length),
-        ].concat(this.data);
+            ...this.data
+        ];
     }
 }
 exports.ArtnetDmxPackage = ArtnetDmxPackage;
@@ -55,6 +57,7 @@ class ArtnetSender {
         this.config = config;
         this._port = 6454;
         this._networkInterface = config.networkInterface;
+        this._artDmx = new ArtnetDmxPackage();
         const socket = dgram_1.createSocket({
             type: 'udp4',
             reuseAddr: true,
@@ -88,18 +91,10 @@ class ArtnetSender {
         });
     }
     send(host, universe, data) {
-        return new Promise((resolve, reject) => {
-            const artDmx = new ArtnetDmxPackage();
-            artDmx.universe = universe;
-            artDmx.data = data.slice();
-            const buf = Buffer.from(artDmx.package);
-            this._socket.send(buf, 0, buf.length, this._port, host, (error, bytes) => {
-                if (error)
-                    reject(error);
-                else
-                    resolve(bytes);
-            });
-        });
+        this._artDmx.universe = universe;
+        this._artDmx.data = data;
+        const buf = Buffer.from(this._artDmx.package);
+        this._socket.send(buf, 0, buf.length, this._port, host);
     }
     close() {
         this._socket.close();
