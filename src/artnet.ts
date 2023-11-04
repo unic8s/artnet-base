@@ -20,7 +20,7 @@ export abstract class ArtnetPackage {
     }
 
     get package(): number[] {
-        return [...this.header, ...this.body];
+        return [...this.headerCache, ...this.body];
     }
 
     abstract get body(): number[];
